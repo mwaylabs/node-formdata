@@ -20,6 +20,8 @@ npm install node-formdata
 start the server with: `node server.js` to test this example against.
 
 ```
+var fileUpload = require('node-formdata');
+
 var defaultOptions = {
     hostname: '0.0.0.0',
     port: 27372,
@@ -31,6 +33,7 @@ var defaultOptions = {
     error: function(){}
 };
 
+//HTTP
 fileUpload(defaultOptions).then(function() {
     console.log('end');
 }, function() {
@@ -38,6 +41,12 @@ fileUpload(defaultOptions).then(function() {
 }, function( progress ) {
     console.log('upload progress', progress);
 });
+
+// HTTP
+fileUpload(defaultOptions, 'http');
+
+// HTTPS
+fileUpload(defaultOptions, 'https');
 
 ```
 

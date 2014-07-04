@@ -14,6 +14,7 @@ var defaultOptions = {
     error: function(){}
 };
 
+// HTTP
 fileUpload(defaultOptions).then(function() {
     console.log('end');
 }, function() {
@@ -21,3 +22,9 @@ fileUpload(defaultOptions).then(function() {
 }, function( progress ) {
     console.log('upload progress', progress);
 });
+
+// HTTP
+fileUpload(defaultOptions, 'http');
+
+// HTTPS
+fileUpload(defaultOptions, 'https');

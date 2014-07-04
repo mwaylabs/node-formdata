@@ -18,15 +18,19 @@ var Q = require('q');
  * error: error callback
  * @returns {promise|*|Q.promise}
  */
-function upload( options ) {
+function upload( options, request ) {
+
+    if(request){
+        http = require(request);
+    }
 
     var deferred = Q.defer();
 
     options = options || {};
-    options.hostname = options.hostname || '0.0.0.0';
-    options.port = options.port || 27372;
-    options.path = options.path || '/upload';
-    options.method = options.method || 'POST';
+//    options.hostname = options.hostname || '0.0.0.0';
+//    options.port = options.port || 27372;
+//    options.path = options.path || '/upload';
+//    options.method = options.method || 'POST';
     var verbose = options.verbose || true;
 
     var filePath = options.file || './file.txt';
@@ -72,7 +76,7 @@ function upload( options ) {
             deferred.resolve();
         });
         res.on('error', function( e ) {
-            console.log('error on res');
+            //console.log('error on res');
             deferred.reject(e);
         });
     });
@@ -88,7 +92,7 @@ function upload( options ) {
     request.write(content);
 
     request.on('error', function( e ) {
-        console.log('error', e);
+        //console.log('error', e);
         error(e);
         deferred.reject(e);
     });
@@ -96,7 +100,7 @@ function upload( options ) {
     var fileStream = fs.createReadStream(filePath, { bufferSize: 4 * 1024 });
 
     fileStream.on('error', function(e) {
-        console.log('error on filestream');
+        //console.log('error on filestream');
         deferred.reject(e);
     });
 

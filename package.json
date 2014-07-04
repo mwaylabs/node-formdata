@@ -1,0 +1,18 @@
+{
+  "name": "node-formdata",
+  "version": "0.0.1",
+  "description": "Uploads a file to a server via http formdata",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "author": "mwaylabs",
+  "license": "MIT",
+  "devDependencies": {
+    "multiparty": "^3.2.9",
+    "mocha": "^1.20.1"
+  },
+  "dependencies": {
+    "q": "^1.0.1"
+  }
+}

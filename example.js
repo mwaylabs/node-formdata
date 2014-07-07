@@ -11,7 +11,7 @@ var defaultOptions = {
     verbose: true,
     file: './file.txt',
     progress: function(){},
-    error: function(){}
+    error: function(){/*asdf*/}
 };
 
 // HTTP
@@ -23,8 +23,7 @@ fileUpload(defaultOptions).then(function() {
     console.log('upload progress', progress);
 });
 
-// HTTP
-fileUpload(defaultOptions, 'http');
-
-// HTTPS
-fileUpload(defaultOptions, 'https');
+// use your own instance of request
+var request = require('request');
+// with request
+fileUpload(defaultOptions, request);

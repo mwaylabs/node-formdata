@@ -1,6 +1,6 @@
 {
   "name": "node-formdata",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "Uploads a file to a server via http formdata",
   "main": "index.js",
   "scripts": {
@@ -13,6 +13,7 @@
     "mocha": "^1.20.1"
   },
   "dependencies": {
-    "q": "^1.0.1"
+    "q": "^1.0.1",
+    "request": "^2.36.0"
   }
 }

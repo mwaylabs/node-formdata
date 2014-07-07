@@ -1,126 +1,178 @@
-var http = require('http');
+// don't care if the certificate of an https is valid
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+// node modules
 var fs = require('fs');
 var path = require('path');
+// Promises
 var Q = require('q');
+// Request library
+var Request = require('request');
+// send always cookies
+var request = Request.defaults({jar: true});
 
 /**
  * Uploads a file to a server via http form data
- * @param options
- * see the http option for http.request
- * hostname: the host to call against
- * port: the port to connect to
- * path: the path to the server upload api
- * method: POST
+ * @param options, requestObj
+ * see the request option for further option params
+ * option.hostname: the host to call against
+ * option.port: the port to connect to
+ * option.path: the path to the server upload api
+ * option.method: POST
  *
- * verbose: true: don't log anything, false: log will be shown
- * file: the filepath to upload
- * progress: callback that gets called when a progess happens
- * error: error callback
+ * option.verbose: true: don't log anything, false: log will be shown
+ * option.file: the filepath to upload
+ * option.progress: callback that gets called when a progess happens
+ * option.error: error callback
+ * requestObj - a request object default: require('request');
  * @returns {promise|*|Q.promise}
  */
-function upload( options, request ) {
-
-    if(request){
-        http = require(request);
-    }
+function upload( options, requestObj ) {
 
     var deferred = Q.defer();
 
+    // default: true -> do not log
+    var verbose = true;
+    var callbackCalled = false;
+
+    // use other request implementation
+    if( typeof requestObj === 'function' || typeof requestObj === 'object' ) {
+        request = requestObj;
+    }
+
+    // configure the options
     options = options || {};
-//    options.hostname = options.hostname || '0.0.0.0';
-//    options.port = options.port || 27372;
-//    options.path = options.path || '/upload';
-//    options.method = options.method || 'POST';
-    var verbose = options.verbose || true;
+
+    // do set headers
+    options.headers = options.headers || {};
+    // configure verbose
+    verbose = options.verbose || verbose;
+    // delete to be require option ready
+    delete options.verbose;
 
     var filePath = options.file || './file.txt';
+    // delete to be require option ready
+    delete options.file;
     filePath = path.normalize(filePath);
-
     var fileName = path.basename(filePath);
     var formName = path.basename(filePath, path.extname(filePath));
 
     var progress = options.progress || function( progress, chunk, totalFileSize ) {
-        if(!verbose){
-            console.log('upload progress', progress, '%', 'uploaded', chunk, 'totalFileSize', totalFileSize);
-        }
+        log('upload progress', progress, '%', 'uploaded', chunk, 'totalFileSize', totalFileSize);
     };
+
     var error = options.error || function( e ) {
-        if(!verbose){
-            console.log('problem with request: ' + e.message);
+        log('problem with request: ' + e.message);
+    };
+    // delete to be require option ready
+    delete options.error;
+
+    /**
+     * Call error callback only once
+     * If an async call throws an error after an error accoures do not fire it.
+     * @param arguments
+     */
+    var errorCallback = function(arguments){
+        if(!callbackCalled){
+            callbackCalled = true;
+            error(arguments);
         }
     };
 
-    if(!fs.existsSync(filePath)){
+    /**
+     * Use console.log with verbose option.
+     */
+    var log = function() {
+        if( !verbose ) {
+            console.log.apply(console, arguments);
+        }
+    };
+
+    // delete to be require option ready
+    delete options.progress;
+
+    // return if the file doesn't exist
+    if( !fs.existsSync(filePath) ) {
         var e = 'Error: ENOENT, no such file or directory' + filePath;
-        error(e);
+        errorCallback(e);
         deferred.reject(e);
         return deferred.promise;
     }
 
-    delete options.file;
-    delete options.progress;
-    delete options.error;
-    delete options.verbose;
-
-    var boundaryKey = Math.random().toString(16); // random string
+    // random string
+    var boundaryKey = Math.random().toString(16);
+    // total chunk size
     var chunk = 0;
     var fsStat = fs.statSync(filePath);
     var totalFileSize = fsStat.size;
 
-    var request = http.request(options, function( res ) {
-        //console.log('STATUS: ' + res.statusCode);
-        //console.log('HEADERS: ' + JSON.stringify(res.headers));
-        res.setEncoding('utf8');
-        res.on('data', function( chunk ) {
-            //console.log('BODY: ' + chunk);
-            deferred.resolve();
-        });
-        res.on('error', function( e ) {
-            //console.log('error on res');
-            deferred.reject(e);
-        });
-    });
-
-    request.setHeader('Content-Type', 'multipart/form-data; boundary="' + boundaryKey + '"');
-
+    // formdata content
     var content = '';
     content += '--' + boundaryKey + '\r\n';
     content += 'Content-Type: application/octet-stream\r\n';
     content += 'Content-Disposition: form-data; name="' + formName + '"; filename="' + fileName + '"\r\n' + 'Content-Transfer-Encoding: binary\r\n\r\n';
 
     // the header for the one and only part (need to use CRLF here)
-    request.write(content);
 
-    request.on('error', function( e ) {
-        //console.log('error', e);
-        error(e);
+    var r = request.post(options, function( e, http, response ) {
+
+        if( e ) {
+            log('error', e);
+            errorCallback(e);
+            deferred.reject(e);
+            return;
+        }
+
+        if( http.statusCode !== 200 ) {
+            errorCallback(http.statusCode);
+            deferred.reject(http.statusCode);
+            return;
+        }
+        return deferred.resolve(response);
+    });
+
+    try {
+        // set the correct header
+        r.setHeader('Content-Type', 'multipart/form-data; boundary="' + boundaryKey + '"');
+        // write the content
+        r.write(content);
+
+        r.on('error', function( e ) {
+            log('error', e);
+            errorCallback(e);
+            deferred.reject(e);
+        });
+
+        var fileStream = fs.createReadStream(filePath, { bufferSize: 4 * 1024 });
+
+        fileStream.on('error', function( e ) {
+            log('error on filestream', e);
+            errorCallback(e);
+            deferred.reject(e);
+        });
+
+        fileStream.on('end', function() {
+            // mark the end of the one and only part
+            r.end('\r\n--' + boundaryKey + '--');
+        });
+
+        fileStream.on('data', function( data ) {
+            // mark the end of the one and only part
+            chunk += data.length;
+            var percentage = Math.floor((100 * chunk) / totalFileSize);
+            progress(percentage, chunk, totalFileSize);
+            deferred.notify(percentage);
+        });
+
+        // set "end" to false in the options so .end() isn't called on the request
+        fileStream.pipe(r, { end: false });
+    } catch( e ) {
+        log('error', e);
+        errorCallback(e);
         deferred.reject(e);
-    });
-
-    var fileStream = fs.createReadStream(filePath, { bufferSize: 4 * 1024 });
-
-    fileStream.on('error', function(e) {
-        //console.log('error on filestream');
-        deferred.reject(e);
-    });
-
-    fileStream.on('end', function() {
-        // mark the end of the one and only part
-        request.end('\r\n--' + boundaryKey + '--');
-    });
-
-    fileStream.on('data', function( data ) {
-        // mark the end of the one and only part
-        chunk += data.length;
-        var percentage = Math.floor((100 * chunk) / totalFileSize);
-        progress(percentage, chunk, totalFileSize);
-        deferred.notify(percentage);
-    });
-
-    // set "end" to false in the options so .end() isn't called on the request
-    fileStream.pipe(request, { end: false });
+    }
 
     return deferred.promise;
 }
 
+// API
 module.exports = upload;

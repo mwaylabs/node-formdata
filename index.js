@@ -122,7 +122,7 @@ function upload( options, requestObj ) {
             return;
         }
 
-        if( http.statusCode !== 200 ) {
+        if( http.statusCode >= 300 ) {
             errorCallback(http.statusCode);
             deferred.reject(http.statusCode);
             return;

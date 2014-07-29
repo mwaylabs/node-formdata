@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.1 - 2014-07-29
+- add check if filesize is 0
+
 ## 0.1.0 - 2014-07-07
 - use request as http client library (not backward compatible)
 

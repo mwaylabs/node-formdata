@@ -158,7 +158,10 @@ function upload( options, requestObj ) {
         fileStream.on('data', function( data ) {
             // mark the end of the one and only part
             chunk += data.length;
-            var percentage = Math.floor((100 * chunk) / totalFileSize);
+            var percentage = 0;
+            if(totalFileSize !== 0){
+                percentage = Math.floor((100 * chunk) / totalFileSize);
+            }
             progress(percentage, chunk, totalFileSize);
             deferred.notify(percentage);
         });

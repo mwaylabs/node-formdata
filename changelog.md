@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.5 - 2014-08-13
+- file isn't mandatory
+
 ## 0.1.4 - 2014-08-13
 - add fields
 

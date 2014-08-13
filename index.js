@@ -26,7 +26,7 @@ var request = Request.defaults({jar: true});
  * requestObj - a request object default: require('request');
  * @returns {promise|*|Q.promise}
  */
-function upload( options, requestObj ) {
+function upload(options, requestObj) {
 
     var deferred = Q.defer();
 
@@ -35,7 +35,7 @@ function upload( options, requestObj ) {
     var callbackCalled = false;
 
     // use other request implementation
-    if( typeof requestObj === 'function' || typeof requestObj === 'object' ) {
+    if (typeof requestObj === 'function' || typeof requestObj === 'object') {
         request = requestObj;
     }
 
@@ -49,18 +49,21 @@ function upload( options, requestObj ) {
     // delete to be require option ready
     delete options.verbose;
 
-    var filePath = options.file || './file.txt';
+    var filePath = options.file || false;
     // delete to be require option ready
     delete options.file;
-    filePath = path.normalize(filePath);
-    var fileName = path.basename(filePath);
-    var formName = path.basename(filePath, path.extname(filePath));
+    if (filePath) {
+        filePath = path.normalize(filePath);
+        var fileName = path.basename(filePath);
+        var formName = path.basename(filePath, path.extname(filePath));
+    }
 
-    var progress = options.progress || function( progress, chunk, totalFileSize ) {
+
+    var progress = options.progress || function (progress, chunk, totalFileSize) {
         log('upload progress', progress, '%', 'uploaded', chunk, 'totalFileSize', totalFileSize);
     };
 
-    var error = options.error || function( e ) {
+    var error = options.error || function (e) {
         log('problem with request: ' + e.message);
     };
     // delete to be require option ready
@@ -71,8 +74,8 @@ function upload( options, requestObj ) {
      * If an async call throws an error after an error accoures do not fire it.
      * @param arguments
      */
-    var errorCallback = function(arguments){
-        if(!callbackCalled){
+    var errorCallback = function (arguments) {
+        if (!callbackCalled) {
             callbackCalled = true;
             error(arguments);
         }
@@ -81,8 +84,8 @@ function upload( options, requestObj ) {
     /**
      * Use console.log with verbose option.
      */
-    var log = function() {
-        if( !verbose ) {
+    var log = function () {
+        if (!verbose) {
             console.log.apply(console, arguments);
         }
     };
@@ -91,7 +94,7 @@ function upload( options, requestObj ) {
     delete options.progress;
 
     // return if the file doesn't exist
-    if( !fs.existsSync(filePath) ) {
+    if (filePath !== false && !fs.existsSync(filePath)) {
         var e = 'Error: ENOENT, no such file or directory' + filePath;
         errorCallback(e);
         deferred.reject(e);
@@ -102,15 +105,14 @@ function upload( options, requestObj ) {
     var boundaryKey = Math.random().toString(16);
     // total chunk size
     var chunk = 0;
-    var fsStat = fs.statSync(filePath);
-    var totalFileSize = fsStat.size;
+
 
     // formdata content
     var content = '';
 
-    if(options.fields){
+    if (options.fields) {
         var keys = Object.keys(options.fields);
-        for(var i = 0; i < keys.length; i++){
+        for (var i = 0; i < keys.length; i++) {
             var name = keys[i];
             var value = options.fields[name];
             content += '--' + boundaryKey + '\r\n';
@@ -118,73 +120,74 @@ function upload( options, requestObj ) {
         }
     }
 
-    content += '--' + boundaryKey + '\r\n';
-    content += 'Content-Type: application/octet-stream\r\n';
-    content += 'Content-Disposition: form-data; name="' + formName + '"; filename="' + fileName + '"\r\n' + 'Content-Transfer-Encoding: binary\r\n\r\n';
-
     // the header for the one and only part (need to use CRLF here)
 
-    var r = request.post(options, function( e, http, response ) {
+    var r = request.post(options, function (e, http, response) {
 
-        if( e ) {
+        if (e) {
             log('error', e);
             errorCallback(e);
             deferred.reject(e);
             return;
         }
 
-        if( http.statusCode >= 300 ) {
+        if (http.statusCode >= 300) {
             errorCallback(http.statusCode);
             deferred.reject(http.statusCode);
             return;
         }
         return deferred.resolve(response);
     });
+    if (filePath) {
+        var fsStat = fs.statSync(filePath);
+        var totalFileSize = fsStat.size;
+        try {
+            content += '--' + boundaryKey + '\r\n';
+            content += 'Content-Type: application/octet-stream\r\n';
+            content += 'Content-Disposition: form-data; name="' + formName + '"; filename="' + fileName + '"\r\n' + 'Content-Transfer-Encoding: binary\r\n\r\n';
+            // set the correct header
+            r.setHeader('Content-Type', 'multipart/form-data; boundary="' + boundaryKey + '"');
+            // write the content
+            r.write(content);
 
-    try {
-        // set the correct header
-        r.setHeader('Content-Type', 'multipart/form-data; boundary="' + boundaryKey + '"');
-        // write the content
-        r.write(content);
+            r.on('error', function (e) {
+                log('error', e);
+                errorCallback(e);
+                deferred.reject(e);
+            });
 
-        r.on('error', function( e ) {
+            var fileStream = fs.createReadStream(filePath, { bufferSize: 4 * 1024 });
+
+            fileStream.on('error', function (e) {
+                log('error on filestream', e);
+                errorCallback(e);
+                deferred.reject(e);
+            });
+
+            fileStream.on('end', function () {
+                // mark the end of the one and only part
+                r.end('\r\n--' + boundaryKey + '--');
+            });
+
+            fileStream.on('data', function (data) {
+                // mark the end of the one and only part
+                chunk += data.length;
+                var percentage = 0;
+                if (totalFileSize !== 0) {
+                    percentage = Math.floor((100 * chunk) / totalFileSize);
+                }
+                progress(percentage, chunk, totalFileSize);
+                deferred.notify(percentage);
+            });
+
+            // set "end" to false in the options so .end() isn't called on the request
+            fileStream.pipe(r, { end: false });
+        } catch (e) {
             log('error', e);
             errorCallback(e);
             deferred.reject(e);
-        });
-
-        var fileStream = fs.createReadStream(filePath, { bufferSize: 4 * 1024 });
-
-        fileStream.on('error', function( e ) {
-            log('error on filestream', e);
-            errorCallback(e);
-            deferred.reject(e);
-        });
-
-        fileStream.on('end', function() {
-            // mark the end of the one and only part
-            r.end('\r\n--' + boundaryKey + '--');
-        });
-
-        fileStream.on('data', function( data ) {
-            // mark the end of the one and only part
-            chunk += data.length;
-            var percentage = 0;
-            if(totalFileSize !== 0){
-                percentage = Math.floor((100 * chunk) / totalFileSize);
-            }
-            progress(percentage, chunk, totalFileSize);
-            deferred.notify(percentage);
-        });
-
-        // set "end" to false in the options so .end() isn't called on the request
-        fileStream.pipe(r, { end: false });
-    } catch( e ) {
-        log('error', e);
-        errorCallback(e);
-        deferred.reject(e);
+        }
     }
-
     return deferred.promise;
 }
 

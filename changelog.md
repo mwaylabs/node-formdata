@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.4 - 2014-08-13
+- add fields
+
 ## 0.1.3 - 2014-07-29
 - add check if filesize is 0
 

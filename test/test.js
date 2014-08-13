@@ -1,5 +1,6 @@
 var fileUpload = require('../index.js');
 var server = require('../server.js');
+var assert = require('assert');
 
 describe("node-formdata", function() {
 
@@ -11,11 +12,20 @@ describe("node-formdata", function() {
             url: 'http://0.0.0.0:27372/upload',
             method: 'POST',
             verbose: true,
-            file: './file.txt'
+            file: './file.txt',
+            fields: {
+                name: 'NAME',
+                uuid: 'UUID'
+            }
         };
 
-        fileUpload(options).then(function() {
+        fileUpload(options).then(function(responseData) {
             if( progressCalled ) {
+                var data = JSON.parse(responseData);
+                assert.strictEqual(data.files.file[0].fieldName, 'file');
+                assert.strictEqual(data.files.file[0].originalFilename, 'file.txt');
+                assert.strictEqual(data.fields.name[0], 'NAME');
+                assert.strictEqual(data.fields.uuid[0], 'UUID');
                 cb();
             }
         }, function( e ) {

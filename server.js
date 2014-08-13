@@ -25,11 +25,12 @@ var server = http.createServer(function(req, res) {
                 res.end("invalid request: " + err.message);
                 return;
             }
-            res.writeHead(200, {'content-type': 'text/plain'});
-            res.write('received fields:\n\n '+util.inspect(fields));
-            res.write('\n\n');
-            console.log('received files:\n\n '+util.inspect(files));
-            res.end('received files:\n\n '+util.inspect(files));
+            res.writeHead(200, {'content-type': 'application/json'});
+            var response = {
+                fields: fields,
+                files: files
+            };
+            res.end(JSON.stringify(response));
         });
     } else {
         res.writeHead(404, {'content-type': 'text/plain'});

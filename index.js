@@ -107,6 +107,17 @@ function upload( options, requestObj ) {
 
     // formdata content
     var content = '';
+
+    if(options.fields){
+        var keys = Object.keys(options.fields);
+        for(var i = 0; i < keys.length; i++){
+            var name = keys[i];
+            var value = options.fields[name];
+            content += '--' + boundaryKey + '\r\n';
+            content += 'Content-Disposition: form-data; name="' + name + '" \r\n\r\n' + value + '\r\n';
+        }
+    }
+
     content += '--' + boundaryKey + '\r\n';
     content += 'Content-Type: application/octet-stream\r\n';
     content += 'Content-Disposition: form-data; name="' + formName + '"; filename="' + fileName + '"\r\n' + 'Content-Transfer-Encoding: binary\r\n\r\n';

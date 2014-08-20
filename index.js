@@ -132,8 +132,8 @@ function upload(options, requestObj) {
         }
 
         if (http.statusCode >= 300) {
-            errorCallback(http.statusCode);
-            deferred.reject(http.statusCode);
+            errorCallback(http);
+            deferred.reject(http);
             return;
         }
         return deferred.resolve(response);

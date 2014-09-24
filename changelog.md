@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.7 - 2014-08-13
+- Return response object instead of error code
+
 ## 0.1.5 - 2014-08-13
 - file isn't mandatory
 

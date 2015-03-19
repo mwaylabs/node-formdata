@@ -18,7 +18,8 @@ var request = Request.defaults({jar: true});
  * option.port: the port to connect to
  * option.path: the path to the server upload api
  * option.method: POST
- *
+ * option.configure: callback receiving requester object for final configuration.
+ * 	The configure(requester) function is useful for piping response data and/or registration of event handlers.
  * option.verbose: true: don't log anything, false: log will be shown
  * option.file: the filepath to upload
  * option.progress: callback that gets called when a progess happens
@@ -122,7 +123,7 @@ function upload(options, requestObj) {
 
     // the header for the one and only part (need to use CRLF here)
 
-    var r = request.post(options, function (e, http, response) {
+    var r = request.post(options,function (e, http, response) {
 
         if (e) {
             log('error', e);
@@ -138,6 +139,11 @@ function upload(options, requestObj) {
         }
         return deferred.resolve(response);
     });
+
+    if (typeof options.configure === 'function') {
+        options.configure(r);
+    }
+
     if (filePath) {
         var fsStat = fs.statSync(filePath);
         var totalFileSize = fsStat.size;

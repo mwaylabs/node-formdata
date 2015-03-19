@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.8 - 2015-03-19
+- add options.configure callback receiving requester object for final configuration.
+  The configure(requester) function is useful for piping response data and/or registration of event handlers.
+
 ## 0.1.7 - 2014-08-13
 - Return response object instead of error code
 
